@@ -1,0 +1,19 @@
+name: BeyondVotes
+main: Lihad.BeyondVotes.BeyondVotes
+version: 4.2
+commands:
+  bv:
+    description: Invalid Command
+    usage: Invalid Command
+  bvset:
+    description: Invalid Command
+    usage: Invalid Command
+  bvdelete:
+    description: Invalid Command
+    usage: Invalid Command
+  bvlookup:
+    description: Invalid Command
+    usage: Invalid Command
+  bvoverride:
+    description: Invalid Command
+    usage: Invalid Command
