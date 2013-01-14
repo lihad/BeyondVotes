@@ -39,8 +39,12 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 	public static List<Player> PLAYERS = new LinkedList<Player>();
 	public static Map<String,Date> minestatus_map = new HashMap<String,Date>();
 	public static Map<String,Long> tekkit_map = new HashMap<String,Long>();
+	public static Map<String,Long> ftb_map = new HashMap<String,Long>();
+
 	public static List<Location> minestatus_locations = new LinkedList<Location>();
 	public static List<Location> tekkitserverlist_locations = new LinkedList<Location>();
+	public static List<Location> ftbserverlist_locations = new LinkedList<Location>();
+
 	public static List<String> override = new LinkedList<String>();
 	public static Map<String,SignType> selection_enabled = new HashMap<String,SignType>();
 	public static Map<String,SignType> selection_deletion = new HashMap<String,SignType>();
@@ -51,7 +55,7 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 
 	SimpleDateFormat parserSDF=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss ZZZZZ");
 	public enum SignType{
-		MINESTATUS,TEKKIT
+		MINESTATUS,TEKKIT,FTB
 	}
 	@Override
 	public void onDisable() {
@@ -66,6 +70,9 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 			}
 			for(int i = 0; i<config.getList("LocationsTekkitServerList").size();i++){
 				tekkitserverlist_locations.add(toLocation((String)config.getList("LocationsTekkitServerList").get(i)));
+			}
+			for(int i = 0; i<config.getList("LocationsFTBServerList").size();i++){
+				tekkitserverlist_locations.add(toLocation((String)config.getList("LocationsFTBServerList").get(i)));
 			}
 		}
 		//Timer related to building the maps off the votifier log
