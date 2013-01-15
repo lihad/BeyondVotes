@@ -72,7 +72,7 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 				tekkitserverlist_locations.add(toLocation((String)config.getList("LocationsTekkitServerList").get(i)));
 			}
 			for(int i = 0; i<config.getList("LocationsFTBServerList").size();i++){
-				tekkitserverlist_locations.add(toLocation((String)config.getList("LocationsFTBServerList").get(i)));
+				ftbserverlist_locations.add(toLocation((String)config.getList("LocationsFTBServerList").get(i)));
 			}
 		}
 		//Timer related to building the maps off the votifier log
@@ -94,6 +94,8 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 							tekkit_map.put((line.substring(line.indexOf("username:")+9, line.indexOf("address:")-1)).toLowerCase(), Long.parseLong(line.substring(line.indexOf("timeStamp:")+10,line.indexOf("timeStamp:")+20)));
 						}else if(line.contains("Minestatus")){
 							minestatus_map.put((line.substring(line.indexOf("username:")+9, line.indexOf("address:")-1)).toLowerCase(), parserSDF.parse(line.substring(line.indexOf("timeStamp:")+10,line.indexOf("timeStamp:")+35)));
+						}else if(line.contains("ftbserverlist.com")){
+							ftb_map.put((line.substring(line.indexOf("username:")+9, line.indexOf("address:")-1)).toLowerCase(), Long.parseLong(line.substring(line.indexOf("timeStamp:")+10,line.indexOf("timeStamp:")+20)));
 						}
 						linenumber++;
 					}
@@ -165,6 +167,10 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 					event.setTo(getServer().getWorld("tekkit").getSpawnLocation());
 					messageMinestatusSpamPlayer(player);
 				}
+				if((override != null && override.contains(player.getName())) || (!(ftb_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(ftb_map.get((player).getName().toLowerCase())*1000) < 86400000)))){
+					event.setTo(getServer().getWorld("tekkit").getSpawnLocation());
+					messageMinestatusSpamPlayer(player);
+				}
 			}		
 		}
 	}
@@ -184,12 +190,16 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 					player.teleport(getServer().getWorld("tekkit").getSpawnLocation());
 					messageMinestatusSpamPlayer(player);
 				}
+				if((override != null && override.contains(player.getName())) || (!(ftb_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(ftb_map.get((player).getName().toLowerCase())*1000) < 86400000)))){
+					player.teleport(getServer().getWorld("tekkit").getSpawnLocation());
+					messageMinestatusSpamPlayer(player);
+				}
 			}		
 		}
 	}
 	@EventHandler
 	public void onPlayerInteract(PlayerInteractEvent event){
-		if(event.getClickedBlock() != null && selection_enabled.containsKey(event.getPlayer().getName()) && !minestatus_locations.contains(event.getClickedBlock().getLocation()) && !tekkitserverlist_locations.contains(event.getClickedBlock().getLocation())){
+		if(event.getClickedBlock() != null && selection_enabled.containsKey(event.getPlayer().getName()) && !minestatus_locations.contains(event.getClickedBlock().getLocation()) && !tekkitserverlist_locations.contains(event.getClickedBlock().getLocation())&& !ftbserverlist_locations.contains(event.getClickedBlock().getLocation())){
 			switch(selection_enabled.get(event.getPlayer().getName())){
 			case MINESTATUS:
 				minestatus_locations.add(event.getClickedBlock().getLocation());
@@ -197,16 +207,22 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 			case TEKKIT:
 				tekkitserverlist_locations.add(event.getClickedBlock().getLocation());
 				break;
+			case FTB:
+				ftbserverlist_locations.add(event.getClickedBlock().getLocation());
+				break;
 			}
 			event.getPlayer().sendMessage("Location Set");
 			selection_enabled.remove(event.getPlayer().getName());
-		}else if(event.getClickedBlock() != null && selection_deletion.containsKey(event.getPlayer().getName()) && minestatus_locations.contains(event.getClickedBlock().getLocation()) && tekkitserverlist_locations.contains(event.getClickedBlock().getLocation())){
+		}else if(event.getClickedBlock() != null && selection_deletion.containsKey(event.getPlayer().getName()) && minestatus_locations.contains(event.getClickedBlock().getLocation()) && tekkitserverlist_locations.contains(event.getClickedBlock().getLocation())&& ftbserverlist_locations.contains(event.getClickedBlock().getLocation())){
 			switch(selection_deletion.get(event.getPlayer().getName())){
 			case MINESTATUS:
 				minestatus_locations.remove(event.getClickedBlock().getLocation());
 				break;
 			case TEKKIT:
 				tekkitserverlist_locations.remove(event.getClickedBlock().getLocation());
+				break;
+			case FTB:
+				ftbserverlist_locations.remove(event.getClickedBlock().getLocation());
 				break;
 			}			
 			event.getPlayer().sendMessage("Location Removed");
@@ -217,6 +233,9 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 		}else if(event.getClickedBlock() != null && tekkitserverlist_locations.contains(event.getClickedBlock().getLocation())){
 			event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"To receive your prize, just click the link below and vote!");
 			event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.GREEN.toString()+ChatColor.UNDERLINE.toString()+" http://tekkitserverlist.com/server/622/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString());
+		}else if(event.getClickedBlock() != null && ftbserverlist_locations.contains(event.getClickedBlock().getLocation())){
+			event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"To receive your prize, just click the link below and vote!");
+			event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.BLUE.toString()+ChatColor.UNDERLINE.toString()+" http://ftbservers.com/server/375/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString());
 		}
 	}
 
@@ -255,6 +274,24 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 		}
 		if(active)System.out.println("Ending Minestatus Vote Spammer....");
 	}
+	private void ftbSpammer(){
+		//Method related to the Minestatus Map
+		if(active)info("Running FTBSL Vote Spammer....");
+		Player[] players = getPlayers();
+		Calendar calendar = Calendar.getInstance();
+		for(int i = 0;i<players.length;i++){
+			Player player = players[i];
+	        String sIp = (player).getName().toLowerCase();
+	        if(!ftb_map.containsKey(sIp)){
+	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was not found.  Spammed");
+	        	messageFTBSpamPlayer(player);
+	        }else if(ftb_map.containsKey(sIp) && (calendar.get(Calendar.DAY_OF_MONTH) != minestatus_map.get(sIp).getDate())){
+	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was found but hasn't voted today");
+	        	messageFTBSpamPlayer(player);
+	        }
+		}
+		if(active)System.out.println("Ending FTBSL Vote Spammer....");
+	}
 	private void messageTekkitSpamPlayer(Player player){
 		player.sendMessage(ChatColor.GRAY.toString()+"Hey! It doesn't look like you've voted on"+ChatColor.DARK_GREEN.toString()+" TekkitServerList!");
 		player.sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.GREEN.toString()+ChatColor.UNDERLINE.toString()+" http://tekkitserverlist.com/server/622/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString()+" and vote!");
@@ -263,6 +300,11 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 	private void messageMinestatusSpamPlayer(Player player){
 		player.sendMessage(ChatColor.GRAY.toString()+"Hey! It doesn't look like you've voted on"+ChatColor.DARK_RED.toString()+" Minestatus"+ChatColor.GRAY.toString()+" today!");
 		player.sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.RED.toString()+ChatColor.UNDERLINE.toString()+" http://minestatus.net/2902/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString()+" and vote!");
+		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"5 Diamonds and $500!");
+	}
+	private void messageFTBSpamPlayer(Player player){
+		player.sendMessage(ChatColor.GRAY.toString()+"Hey! It doesn't look like you've voted on"+ChatColor.DARK_BLUE.toString()+" FTBServerList"+ChatColor.GRAY.toString()+" today!");
+		player.sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.BLUE.toString()+ChatColor.UNDERLINE.toString()+" http://ftbservers.com/server/375/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString()+" and vote!");
 		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"5 Diamonds and $500!");
 	}
 	private Player[] getPlayers(){
@@ -309,6 +351,10 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 					if(!(minestatus_map.containsKey((player).getName().toLowerCase()) && (calendar.get(Calendar.DAY_OF_MONTH) == minestatus_map.get((player).getName().toLowerCase()).getDate()))){
 						sender.sendMessage("Player has not voted for Minestatus this day");
 					}
+					if(!(ftb_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(ftb_map.get((player).getName().toLowerCase())*1000) < 86400000))){
+						sender.sendMessage("Player has not voted for FTBSL this day");
+					}
+					
 				}else{
 					sender.sendMessage("Invalid Playername");
 				}
@@ -343,6 +389,11 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 			strings.add(toString(tekkitserverlist_locations.get(i)));
 		}
 		config.set("LocationsTekkitServerList", strings);
+		strings = new LinkedList<String>();
+		for(int i = 0;i<ftbserverlist_locations.size();i++){
+			strings.add(toString(ftbserverlist_locations.get(i)));
+		}
+		config.set("LocationsFTBServerList", strings);
 		this.saveConfig();
 	}
 	private static Location toLocation(String string){

@@ -1,6 +1,6 @@
 name: BeyondVotes
 main: Lihad.BeyondVotes.BeyondVotes
-version: 4.2
+version: 5.0
 commands:
   bv:
     description: Invalid Command
