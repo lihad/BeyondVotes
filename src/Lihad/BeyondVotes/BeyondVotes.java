@@ -297,17 +297,17 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 	private void messageTekkitSpamPlayer(Player player){
 		player.sendMessage(ChatColor.GRAY.toString()+"Hey! It doesn't look like you've voted on"+ChatColor.DARK_GREEN.toString()+" TekkitServerList!");
 		player.sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.GREEN.toString()+ChatColor.UNDERLINE.toString()+" http://tekkitserverlist.com/server/622/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString()+" and vote!");
-		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"5 Diamonds and $500!");
+		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"5 Diamonds, 3 UU Matter, Cooked Chops and $500!");
 	}
 	private void messageMinestatusSpamPlayer(Player player){
 		player.sendMessage(ChatColor.GRAY.toString()+"Hey! It doesn't look like you've voted on"+ChatColor.DARK_RED.toString()+" Minestatus"+ChatColor.GRAY.toString()+" today!");
 		player.sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.RED.toString()+ChatColor.UNDERLINE.toString()+" http://minestatus.net/2902/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString()+" and vote!");
-		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"5 Diamonds and $500!");
+		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"5 Diamonds, 3 UU Matter, Cooked Chops and $500!");
 	}
 	private void messageFTBSpamPlayer(Player player){
 		player.sendMessage(ChatColor.GRAY.toString()+"Hey! It doesn't look like you've voted on"+ChatColor.DARK_BLUE.toString()+" FTBServerList"+ChatColor.GRAY.toString()+" today!");
 		player.sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.BLUE.toString()+ChatColor.UNDERLINE.toString()+" http://ftbservers.com/server/375/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString()+" and vote!");
-		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"5 Diamonds and $500!");
+		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"5 Diamonds, 3 UU Matter, Cooked Chops and $500!");
 	}
 	private Player[] getPlayers(){
 		return getServer().getOnlinePlayers();
