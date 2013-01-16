@@ -64,7 +64,7 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 	@Override
 	public void onEnable(){
 		config = getConfig();
-		if(config.getList("LocationsMinestatus") != null && config.getList("LocationsTekkitServerList") != null){
+		if(config.getList("LocationsMinestatus") != null && config.getList("LocationsTekkitServerList") != null && config.getList("LocationsFTBServerList") != null){
 			for(int i = 0; i<config.getList("LocationsMinestatus").size();i++){
 				minestatus_locations.add(toLocation((String)config.getList("LocationsMinestatus").get(i)));
 			}
@@ -135,9 +135,11 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 				}
 				//
 				if(runrotation == 4)tekkitSpammer();
-				if(runrotation == 9)minestatusSpammer();
+				if(runrotation == 8)minestatusSpammer();
+				if(runrotation == 12)ftbSpammer();
+
 				runrotation++;
-				if(runrotation >= 10) runrotation = 0;
+				if(runrotation >= 13) runrotation = 0;
 				if(active)info("Ending vote gatherer");
 			}
 		}, 0, 600L);
@@ -169,7 +171,7 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 				}
 				if((override != null && override.contains(player.getName())) || (!(ftb_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(ftb_map.get((player).getName().toLowerCase())*1000) < 86400000)))){
 					event.setTo(getServer().getWorld("tekkit").getSpawnLocation());
-					messageMinestatusSpamPlayer(player);
+					messageFTBSpamPlayer(player);
 				}
 			}		
 		}
@@ -192,7 +194,7 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 				}
 				if((override != null && override.contains(player.getName())) || (!(ftb_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(ftb_map.get((player).getName().toLowerCase())*1000) < 86400000)))){
 					player.teleport(getServer().getWorld("tekkit").getSpawnLocation());
-					messageMinestatusSpamPlayer(player);
+					messageFTBSpamPlayer(player);
 				}
 			}		
 		}
