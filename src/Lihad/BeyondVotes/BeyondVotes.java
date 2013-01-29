@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.logging.Logger;
 
 import org.bukkit.ChatColor;
@@ -22,6 +23,7 @@ import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -29,6 +31,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class BeyondVotes extends JavaPlugin implements Listener {
@@ -37,52 +40,71 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 	protected static String header = "[" + PLUGIN_NAME + "] ";
 	private static Logger log = Logger.getLogger("Minecraft");
 	public static List<Player> PLAYERS = new LinkedList<Player>();
-	public static Map<String,Date> minestatus_map = new HashMap<String,Date>();
-	public static Map<String,Long> tekkit_map = new HashMap<String,Long>();
-	public static Map<String,Long> ftb_map = new HashMap<String,Long>();
 
-	public static List<Location> minestatus_locations = new LinkedList<Location>();
-	public static List<Location> tekkitserverlist_locations = new LinkedList<Location>();
-	public static List<Location> ftbserverlist_locations = new LinkedList<Location>();
-
+	public static Map<String,String> selection_enabled = new HashMap<String,String>();
+	public static List<String> selection_deletion = new LinkedList<String>();
 	public static List<String> override = new LinkedList<String>();
-	public static Map<String,SignType> selection_enabled = new HashMap<String,SignType>();
-	public static Map<String,SignType> selection_deletion = new HashMap<String,SignType>();
 	public static boolean active = false;
 	public static int lineindex = 0;
 	private int runrotation = 0;
 	public static File whitelist = new File("ftb-white-list.txt");
 
 	SimpleDateFormat parserSDF=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss ZZZZZ");
-	public enum SignType{
-		MINESTATUS,TEKKIT,FTB
+	
+	public static File file = new File("plugins/Votifier/votes.log");
+
+	public static List<VotingSite> voting_site_list = new LinkedList<VotingSite>();
+	public static List<String> blocked_worlds = new LinkedList<String>();
+	public static long interval;
+	public static long gather_vote_interval;
+	public static int task;
+
+
+	public class VotingSite{
+		String name;
+		String web_address;
+		String votifier_name;
+		String[] spam_message;
+		boolean rewards_enabled;
+		boolean simple_date;
+		List<ItemStack> rewards;
+		List<Location> locations;
+
+		private Map<String,Long> natural_voting_map = new HashMap<String,Long>();
+		private Map<String,Date> simple_date_voting_map = new HashMap<String,Date>();
+		
+		void putVotingMap(String name, Object obj){
+			if(simple_date)simple_date_voting_map.put(name,(Date) obj);
+			else natural_voting_map.put(name,(Long) obj);
+		}
+		Object getVotingMap(String string){
+			if(simple_date)return simple_date_voting_map.get(string);
+			else return natural_voting_map.get(string);
+		}
+		boolean containsKeyVotingMap(String string){
+			if(simple_date && simple_date_voting_map.containsKey(string)) return true;
+			else if(simple_date_voting_map.containsKey(string)) return true;
+			else return false;
+		}
+		
+		VotingSite(String n, String w, String v, String[] s, boolean b, boolean bs, List<ItemStack> i, List<Location> l){
+			name = n; web_address = w; votifier_name = v;spam_message = s; rewards_enabled = b; simple_date =bs; rewards = i; locations = l;}
 	}
 	@Override
 	public void onDisable() {
-		save();
 	}
+
 	@Override
 	public void onEnable(){
-		config = getConfig();
-		if(config.getList("LocationsMinestatus") != null && config.getList("LocationsTekkitServerList") != null && config.getList("LocationsFTBServerList") != null){
-			for(int i = 0; i<config.getList("LocationsMinestatus").size();i++){
-				minestatus_locations.add(toLocation((String)config.getList("LocationsMinestatus").get(i)));
-			}
-			for(int i = 0; i<config.getList("LocationsTekkitServerList").size();i++){
-				tekkitserverlist_locations.add(toLocation((String)config.getList("LocationsTekkitServerList").get(i)));
-			}
-			for(int i = 0; i<config.getList("LocationsFTBServerList").size();i++){
-				ftbserverlist_locations.add(toLocation((String)config.getList("LocationsFTBServerList").get(i)));
-			}
-		}
+		load();
+		
 		//Timer related to building the maps off the votifier log
-		this.getServer().getScheduler().scheduleAsyncRepeatingTask(this, new Runnable(){
+		task = this.getServer().getScheduler().scheduleAsyncRepeatingTask(this, new Runnable(){
 			public void run() {
 				if(active)info("Running vote gatherer off line "+lineindex);
 				Calendar cal = Calendar.getInstance();
 				String line;
 				cal.setTime(new Date(System.currentTimeMillis()));
-				File file = new File("plugins/Votifier/votes.log");
 				try {
 					BufferedReader rd = new BufferedReader(new FileReader(file));
 					int linenumber = 0;
@@ -90,12 +112,18 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 						if(lineindex > linenumber){
 							linenumber++;
 							continue;
-						}else if(line.contains("tekkitserverlist.com")){
-							tekkit_map.put((line.substring(line.indexOf("username:")+9, line.indexOf("address:")-1)).toLowerCase(), Long.parseLong(line.substring(line.indexOf("timeStamp:")+10,line.indexOf("timeStamp:")+20)));
-						}else if(line.contains("Minestatus")){
-							minestatus_map.put((line.substring(line.indexOf("username:")+9, line.indexOf("address:")-1)).toLowerCase(), parserSDF.parse(line.substring(line.indexOf("timeStamp:")+10,line.indexOf("timeStamp:")+35)));
-						}else if(line.contains("ftbservers.com")){
-							ftb_map.put((line.substring(line.indexOf("username:")+9, line.indexOf("address:")-1)).toLowerCase(), Long.parseLong(line.substring(line.indexOf("timeStamp:")+10,line.indexOf("timeStamp:")+20)));
+						}else{
+							for(int i = 0;i<voting_site_list.size();i++){
+								if(line.contains(voting_site_list.get(i).votifier_name)){
+									if(voting_site_list.get(i).simple_date){
+										voting_site_list.get(i).putVotingMap((line.substring(line.indexOf("username:")+9, line.indexOf("address:")-1)).toLowerCase(),
+												parserSDF.parse(line.substring(line.indexOf("timeStamp:")+10,line.indexOf("timeStamp:")+35)));
+									}else{
+										voting_site_list.get(i).putVotingMap((line.substring(line.indexOf("username:")+9, line.indexOf("address:")-1)).toLowerCase(),
+												Long.parseLong(line.substring(line.indexOf("timeStamp:")+10,line.indexOf("timeStamp:")+20)));
+									}
+								}
+							}
 						}
 						linenumber++;
 					}
@@ -108,266 +136,136 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 				} catch (ParseException e) {
 					e.printStackTrace();
 				}
-				
-				//FTB WHITELIST
-				if(whitelist.exists()){
-					if(active)info("Deleting old FTB-Whitelist...");
-					whitelist.delete();
-					if(active)info("Successfully deleted old FTB-Whitelist.");
-				}
-				try {
-					if(active)info("Attempting to create new FTB-Whitelist...");
-					whitelist.createNewFile();
-					if(active)info("Successfully created new FTB-Whitelist.");
-					if(active)info("Building FTB-Whitelist.");
-					for(int i = 0; i<tekkit_map.size();i++){
-						if(System.currentTimeMillis()-(tekkit_map.get(tekkit_map.keySet().toArray()[i].toString())*1000) < 86400000){
-							BufferedWriter output = new BufferedWriter(new FileWriter(whitelist, true));
-							output.newLine();
-							output.write(tekkit_map.keySet().toArray()[i].toString());
-							output.close();
-						}
-					}
-					if(active)info("FTB-Whitelist Build Complete.");
-
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-				//
-				if(runrotation == 4)tekkitSpammer();
-				if(runrotation == 8)minestatusSpammer();
-				if(runrotation == 12)ftbSpammer();
-
+			
+				int runrotationmax = (int)((interval*voting_site_list.size())/gather_vote_interval);
+				int waittime = runrotationmax/voting_site_list.size();
+				double inverse = 1/waittime;
+				if(inverse == Math.round(inverse))siteSpammer(voting_site_list.get((int)((inverse*runrotation)-inverse)));
 				runrotation++;
-				if(runrotation >= 13) runrotation = 0;
+				if(runrotation >= runrotationmax-1) runrotation = 0;
 				if(active)info("Ending vote gatherer");
 			}
-		}, 0, 600L);
-
-		getCommand("bv").setExecutor(this);
-		getCommand("bvset").setExecutor(this);
-		getCommand("bvdelete").setExecutor(this);
-		getCommand("bvlookup").setExecutor(this);
-		getCommand("bvoverride").setExecutor(this);
-
-
+		}, 0, gather_vote_interval);
+		
 		this.getServer().getPluginManager().registerEvents(this, this);
 	}
 
-	@SuppressWarnings("deprecation")
 	@EventHandler
 	public void onPlayerTeleport(PlayerTeleportEvent event){
-		if(event.getTo().getWorld().getName().equalsIgnoreCase("richworld") || event.getTo().getWorld().getName().equalsIgnoreCase("hardcorerichworld")){
-			Player player = event.getPlayer();
-			Calendar calendar = Calendar.getInstance();
-			if(player.isOp())return;
-			else{
-				if((override != null && override.contains(player.getName())) || (!(tekkit_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(tekkit_map.get((player).getName().toLowerCase())*1000) < 86400000)))){
-					event.setTo(getServer().getWorld("tekkit").getSpawnLocation());
-					messageTekkitSpamPlayer(player);
-				}
-				if((override != null && override.contains(player.getName())) || (!(minestatus_map.containsKey((player).getName().toLowerCase()) && (calendar.get(Calendar.DAY_OF_MONTH) == minestatus_map.get((player).getName().toLowerCase()).getDate())))){
-					event.setTo(getServer().getWorld("tekkit").getSpawnLocation());
-					messageMinestatusSpamPlayer(player);
-				}
-				if((override != null && override.contains(player.getName())) || (!(ftb_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(ftb_map.get((player).getName().toLowerCase())*1000) < 86400000)))){
-					event.setTo(getServer().getWorld("tekkit").getSpawnLocation());
-					messageFTBSpamPlayer(player);
-				}
-			}		
-		}
+		Location location = eventHelperForEjection(event.getPlayer(), event.getTo(), event.getFrom());
+		if(location != null)event.setTo(location);
 	}
-	@SuppressWarnings("deprecation")
 	@EventHandler
 	public void onBlockBreak(BlockBreakEvent event){
-		if(event.getBlock().getWorld().getName().equalsIgnoreCase("richworld") || event.getBlock().getWorld().getName().equalsIgnoreCase("hardcorerichworld")){
-			Player player = event.getPlayer();
-			Calendar calendar = Calendar.getInstance();
-			if(player.isOp())return;
-			if(player == null) return;
-			else{
-				if((override != null && override.contains(player.getName())) || (!(tekkit_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(tekkit_map.get((player).getName().toLowerCase())*1000) < 86400000)))){
-					player.teleport(getServer().getWorld("tekkit").getSpawnLocation());
-					messageTekkitSpamPlayer(player);
-				}
-				if((override != null && override.contains(player.getName())) || (!(minestatus_map.containsKey((player).getName().toLowerCase()) && (calendar.get(Calendar.DAY_OF_MONTH) == minestatus_map.get((player).getName().toLowerCase()).getDate())))){
-					player.teleport(getServer().getWorld("tekkit").getSpawnLocation());
-					messageMinestatusSpamPlayer(player);
-				}
-				if((override != null && override.contains(player.getName())) || (!(ftb_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(ftb_map.get((player).getName().toLowerCase())*1000) < 86400000)))){
-					player.teleport(getServer().getWorld("tekkit").getSpawnLocation());
-					messageFTBSpamPlayer(player);
-				}
-			}		
-		}
+		Location location = eventHelperForEjection(event.getPlayer(), event.getBlock().getLocation(), event.getBlock().getWorld().getSpawnLocation());
+		if(location != null)event.getPlayer().teleport(location);
 	}
 	@EventHandler
 	public void onPlayerInteract(PlayerInteractEvent event){
-		if(event.getClickedBlock() != null && selection_enabled.containsKey(event.getPlayer().getName()) && !minestatus_locations.contains(event.getClickedBlock().getLocation()) && !tekkitserverlist_locations.contains(event.getClickedBlock().getLocation())&& !ftbserverlist_locations.contains(event.getClickedBlock().getLocation())){
-			switch(selection_enabled.get(event.getPlayer().getName())){
-			case MINESTATUS:
-				minestatus_locations.add(event.getClickedBlock().getLocation());
-				break;
-			case TEKKIT:
-				tekkitserverlist_locations.add(event.getClickedBlock().getLocation());
-				break;
-			case FTB:
-				ftbserverlist_locations.add(event.getClickedBlock().getLocation());
-				break;
+		if(event.getClickedBlock() != null && selection_enabled.containsKey(event.getPlayer().getName())){
+			for(int i = 0; i<voting_site_list.size();i++){
+				if(voting_site_list.get(i).locations.contains(event.getClickedBlock().getLocation())){
+					event.getPlayer().sendMessage("position already set");
+					return;
+				}
 			}
-			event.getPlayer().sendMessage("Location Set");
-			selection_enabled.remove(event.getPlayer().getName());
-		}else if(event.getClickedBlock() != null && selection_deletion.containsKey(event.getPlayer().getName()) && minestatus_locations.contains(event.getClickedBlock().getLocation()) && tekkitserverlist_locations.contains(event.getClickedBlock().getLocation())&& ftbserverlist_locations.contains(event.getClickedBlock().getLocation())){
-			switch(selection_deletion.get(event.getPlayer().getName())){
-			case MINESTATUS:
-				minestatus_locations.remove(event.getClickedBlock().getLocation());
-				break;
-			case TEKKIT:
-				tekkitserverlist_locations.remove(event.getClickedBlock().getLocation());
-				break;
-			case FTB:
-				ftbserverlist_locations.remove(event.getClickedBlock().getLocation());
-				break;
-			}			
-			event.getPlayer().sendMessage("Location Removed");
-			selection_deletion.remove(event.getPlayer().getName());
-		}else if(event.getClickedBlock() != null && minestatus_locations.contains(event.getClickedBlock().getLocation())){
-			event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"To receive your prize, just click the link below and vote!");
-			event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.RED.toString()+ChatColor.UNDERLINE.toString()+" http://minestatus.net/2902/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString());
-		}else if(event.getClickedBlock() != null && tekkitserverlist_locations.contains(event.getClickedBlock().getLocation())){
-			event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"To receive your prize, just click the link below and vote!");
-			event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.GREEN.toString()+ChatColor.UNDERLINE.toString()+" http://tekkitserverlist.com/server/622/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString());
-		}else if(event.getClickedBlock() != null && ftbserverlist_locations.contains(event.getClickedBlock().getLocation())){
-			event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"To receive your prize, just click the link below and vote!");
-			event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.BLUE.toString()+ChatColor.UNDERLINE.toString()+" http://ftbservers.com/server/375/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString());
-		}
-	}
+			for(int i = 0; i<voting_site_list.size();i++){
+				if(voting_site_list.get(i).name.equalsIgnoreCase(selection_enabled.get(event.getPlayer().getName()))){
+					voting_site_list.get(i).locations.add(event.getClickedBlock().getLocation());
+					event.getPlayer().sendMessage("location set");
+					selection_enabled.remove(event.getPlayer().getName());
+					saveLocations();
+					return;
+				}
+			}
 
-	private void tekkitSpammer(){
-		//Method related to the Tekkit Map
-		if(active)info("Running TekkitServerList Vote Spammer....");
-		Player[] players = getPlayers();
+		}else if(event.getClickedBlock() != null && selection_deletion.contains(event.getPlayer().getName())){
+			for(int i = 0; i<voting_site_list.size();i++){
+				if(voting_site_list.get(i).locations.contains(event.getClickedBlock().getLocation())){
+					voting_site_list.get(i).locations.add(event.getClickedBlock().getLocation());
+					event.getPlayer().sendMessage(voting_site_list.get(i).name+" location removed");
+					selection_deletion.remove(event.getPlayer().getName());	
+					saveLocations();
+					return;
+				}
+			}
+			event.getPlayer().sendMessage("no position set here");
+
+		}else if(event.getClickedBlock() != null){
+			for(int i = 0; i<voting_site_list.size();i++){
+				if(voting_site_list.get(i).locations.contains(event.getClickedBlock().getLocation())){
+					event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"To receive your prize, just click the link below and vote!");
+					event.getPlayer().sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.RED.toString()+ChatColor.UNDERLINE.toString()+" "+voting_site_list.get(i).web_address+ChatColor.RESET.toString()+ChatColor.GRAY.toString());
+				}
+			}
+		}
+	}
+	@SuppressWarnings("deprecation")
+	private void siteSpammer(VotingSite site){
+		//Method related spamming players
+		if(active)info("Running "+site.name+" Vote Spammer....");
+		Player[] players = getPlayers();		
+		Calendar calendar = Calendar.getInstance();
 		for(int i = 0;i<players.length;i++){
 			Player player = players[i];
 	        String sIp = (player).getName().toLowerCase();
-	        if(!tekkit_map.containsKey(sIp)){
+	        if(site.containsKeyVotingMap(sIp)){
 	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was not found.  Spammed");
-	        	messageTekkitSpamPlayer(player);
-	        }else if(tekkit_map.containsKey(sIp) && (System.currentTimeMillis()-(tekkit_map.get(sIp)*1000) > 86400000)){
+	        	messageSpamPlayer(player, site);
+	        }else if(site.simple_date && site.containsKeyVotingMap(sIp) && (calendar.get(Calendar.DAY_OF_MONTH) != ((Date)site.getVotingMap(sIp)).getDate())){
+	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was found but hasn't voted today");
+	        	messageSpamPlayer(player, site);
+	        }else if(site.containsKeyVotingMap(sIp) && (System.currentTimeMillis()-(((Long)site.getVotingMap(sIp))*1000) > 86400000)){
 	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was found but hasn't voted in the last 24 hours");
-	        	messageTekkitSpamPlayer(player);
+	        	messageSpamPlayer(player, site);
 	        }
 		}
-		if(active)System.out.println("Ending TekkitServerList Vote Spammer....");
+		if(active)System.out.println("Ending "+site.name+" Vote Spammer....");
 	}
-	private void minestatusSpammer(){
-		//Method related to the Minestatus Map
-		if(active)info("Running Minestatus Vote Spammer....");
-		Player[] players = getPlayers();
-		Calendar calendar = Calendar.getInstance();
-		for(int i = 0;i<players.length;i++){
-			Player player = players[i];
-	        String sIp = (player).getName().toLowerCase();
-	        if(!minestatus_map.containsKey(sIp)){
-	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was not found.  Spammed");
-	        	messageMinestatusSpamPlayer(player);
-	        }else if(minestatus_map.containsKey(sIp) && (calendar.get(Calendar.DAY_OF_MONTH) != minestatus_map.get(sIp).getDate())){
-	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was found but hasn't voted today");
-	        	messageMinestatusSpamPlayer(player);
-	        }
-		}
-		if(active)System.out.println("Ending Minestatus Vote Spammer....");
+	
+	private void messageSpamPlayer(Player player, VotingSite site){
+		player.sendMessage(site.spam_message);
 	}
-	private void ftbSpammer(){
-		//Method related to the Minestatus Map
-		if(active)info("Running FTBSL Vote Spammer....");
-		Player[] players = getPlayers();
-		Calendar calendar = Calendar.getInstance();
-		for(int i = 0;i<players.length;i++){
-			Player player = players[i];
-	        String sIp = (player).getName().toLowerCase();
-	        if(!ftb_map.containsKey(sIp)){
-	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was not found.  Spammed");
-	        	messageFTBSpamPlayer(player);
-	        }else if(ftb_map.containsKey(sIp) && (System.currentTimeMillis()-(tekkit_map.get(sIp)*1000) > 86400000)){
-	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was found but hasn't voted today");
-	        	messageFTBSpamPlayer(player);
-	        }
-		}
-		if(active)System.out.println("Ending FTBSL Vote Spammer....");
-	}
-	private void messageTekkitSpamPlayer(Player player){
-		player.sendMessage(ChatColor.GRAY.toString()+"Hey! It doesn't look like you've voted on"+ChatColor.DARK_GREEN.toString()+" TekkitServerList!");
-		player.sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.GREEN.toString()+ChatColor.UNDERLINE.toString()+" http://tekkitserverlist.com/server/622/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString()+" and vote!");
-		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"10 Diamonds, 6 UU Matter, Cooked Chops and $1000!");
-	}
-	private void messageMinestatusSpamPlayer(Player player){
-		player.sendMessage(ChatColor.GRAY.toString()+"Hey! It doesn't look like you've voted on"+ChatColor.DARK_RED.toString()+" Minestatus"+ChatColor.GRAY.toString()+" today!");
-		player.sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.RED.toString()+ChatColor.UNDERLINE.toString()+" http://minestatus.net/2902/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString()+" and vote!");
-		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"10 Diamonds, 6 UU Matter, Cooked Chops and $1000!");
-	}
-	private void messageFTBSpamPlayer(Player player){
-		player.sendMessage(ChatColor.GRAY.toString()+"Hey! It doesn't look like you've voted on"+ChatColor.DARK_BLUE.toString()+" FTBServerList"+ChatColor.GRAY.toString()+" today!");
-		player.sendMessage(ChatColor.GRAY.toString()+"Click ->"+ChatColor.BLUE.toString()+ChatColor.UNDERLINE.toString()+" http://ftbservers.com/server/375/vote"+ChatColor.RESET.toString()+ChatColor.GRAY.toString()+" and vote!");
-		player.sendMessage(ChatColor.GRAY.toString()+"You will recieve "+ChatColor.AQUA.toString()+"10 Diamonds, 6 UU Matter, Cooked Chops and $1000!");
-	}
+	
 	private Player[] getPlayers(){
 		return getServer().getOnlinePlayers();
 	}
-	@SuppressWarnings("deprecation")
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 		if(cmd.getName().equalsIgnoreCase("bv") && args.length == 0 && sender instanceof ConsoleCommandSender) {
 			if(!active){
 				active = true;
-				System.out.println("Debug Active");
+				info("Debug Active");
 			}else{
 				active = false;
-				System.out.println("Debug Off");
+				info("Debug Off");
 			}
-			return true;
+			return true;	
+		}		
+		else if(cmd.getName().equalsIgnoreCase("bvreload") && sender.isOp()){
+			load();
+			sender.sendMessage("bv Reloaded");
 		}else if(cmd.getName().equalsIgnoreCase("bvset") && sender instanceof Player && ((Player)sender).isOp()){
 			if(selection_enabled.containsKey(((Player)sender).getName())){
 				selection_enabled.remove(((Player)sender).getName());
 				((Player)sender).sendMessage("Enable Tool Deselected");
 			}else{
-				selection_enabled.put(((Player)sender).getName(),SignType.valueOf(args[0]));
+				selection_enabled.put(((Player)sender).getName(),args[0]);
 				selection_deletion.remove(((Player)sender).getName());
 				((Player)sender).sendMessage("Enable Tool Selected.  Please Click a Block");
 			}
 			return true;
 		}else if(cmd.getName().equalsIgnoreCase("bvdelete") && sender instanceof Player && ((Player)sender).isOp()){
-			if(selection_deletion.containsKey(((Player)sender).getName())){
+			if(selection_deletion.contains(((Player)sender).getName())){
 				selection_deletion.remove(((Player)sender).getName());
 				((Player)sender).sendMessage("Deletion Tool Deselected");
 			}else{
-				selection_deletion.put(((Player)sender).getName(),SignType.valueOf(args[0]));
+				selection_deletion.add(((Player)sender).getName());
 				selection_enabled.remove(((Player)sender).getName());
 				((Player)sender).sendMessage("Deletion Tool Selected.  Please Click a Valid Block");
 			}
 			return true;
-		}else if(cmd.getName().equalsIgnoreCase("bvlookup")){
-			if(args.length == 1){
-				if(this.getServer().getPlayer(args[0]) != null){
-					Player player = this.getServer().getPlayer(args[0]);
-					Calendar calendar = Calendar.getInstance();
-					if(!(tekkit_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(tekkit_map.get((player).getName().toLowerCase())*1000) < 86400000))){
-						sender.sendMessage("Player has not voted for TSL this 24h");
-					}
-					if(!(minestatus_map.containsKey((player).getName().toLowerCase()) && (calendar.get(Calendar.DAY_OF_MONTH) == minestatus_map.get((player).getName().toLowerCase()).getDate()))){
-						sender.sendMessage("Player has not voted for Minestatus this day");
-					}
-					if(!(ftb_map.containsKey((player).getName().toLowerCase()) && (System.currentTimeMillis()-(ftb_map.get((player).getName().toLowerCase())*1000) < 86400000))){
-						sender.sendMessage("Player has not voted for FTBSL this 24h");
-					}
-					
-				}else{
-					sender.sendMessage("Invalid Playername");
-				}
-			}else{
-				sender.sendMessage("Invalid Arguments");
-			}
-			return true;
-		}else if(cmd.getName().equalsIgnoreCase("bvoverride") && (sender instanceof ConsoleCommandSender || ((Player)sender).isOp())){
+		}
+		else if(cmd.getName().equalsIgnoreCase("bvoverride") && (sender instanceof ConsoleCommandSender || ((Player)sender).isOp())){
 			if(args.length == 1){
 				if(this.getServer().getPlayer(args[0]) != null){
 					Player player = this.getServer().getPlayer(args[0]);
@@ -379,27 +277,119 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 				sender.sendMessage("Invalid Arguments");
 			}
 			return true;
+			//TODO:  Remove the spoofer once ftb is fixed/.
+		}else if(cmd.getName().equalsIgnoreCase("ivoted")){
+			for(int i = 0; i<voting_site_list.size();i++){
+				if(voting_site_list.get(i).rewards_enabled){
+					if(voting_site_list.get(i).containsKeyVotingMap(((Player)sender).getName()) 
+							&& (System.currentTimeMillis()-(((Long)voting_site_list.get(i).getVotingMap(((Player)sender).getName()))*1000) < 86400000)){
+						sender.sendMessage("You already voted for ftb and received rewards today!");
+						return true;
+					}
+					int rnd = new Random().nextInt(3);
+					if(rnd == 0){
+						try {
+							Long currentTime = (System.currentTimeMillis()/1000);
+							String outputline = ("Vote (from:ftbservers.com username:"+((Player)sender).getName()+" address:"+((Player)sender).getAddress().getAddress().getHostAddress()+" timeStamp:"+currentTime);
+							BufferedWriter output = new BufferedWriter(new FileWriter(file, true));
+							output.newLine();
+							output.write(outputline);
+							output.close();
+							
+							voting_site_list.get(i).putVotingMap(sender.getName(), (System.currentTimeMillis()/1000));
+							sender.sendMessage("Congrats!!!  Here are your rewards!!");
+							for(int g = 0; g<voting_site_list.get(i).rewards.size();g++){
+								((Player)sender).getWorld().dropItemNaturally(((Player)sender).getLocation(), voting_site_list.get(i).rewards.get(g));
+							}
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+						
+					}
+					else{
+						sender.sendMessage("It doesnt look like you have voted yet, if you feel like");
+						sender.sendMessage("you received this message in error, wait 30 seconds and");
+						sender.sendMessage("try again");
+					}
+					
+				}
+			}
+			
+			return true;
 		}
 		return false;
 	}
+	
 
-	private void save(){
-		List<String> strings = new LinkedList<String>();
-		for(int i = 0;i<minestatus_locations.size();i++){
-			strings.add(toString(minestatus_locations.get(i)));
+	private void saveLocations(){
+		for(int i = 0; i<voting_site_list.size();i++){
+			List<String> strings = new LinkedList<String>();
+			for(int j = 0;j<voting_site_list.get(i).locations.size();j++){
+				strings.add(toString(voting_site_list.get(i).locations.get(j)));
+			}
+			config.set("sites."+voting_site_list.get(i).name+".locations", strings);
 		}
-		config.set("LocationsMinestatus", strings);
-		strings = new LinkedList<String>();
-		for(int i = 0;i<tekkitserverlist_locations.size();i++){
-			strings.add(toString(tekkitserverlist_locations.get(i)));
-		}
-		config.set("LocationsTekkitServerList", strings);
-		strings = new LinkedList<String>();
-		for(int i = 0;i<ftbserverlist_locations.size();i++){
-			strings.add(toString(ftbserverlist_locations.get(i)));
-		}
-		config.set("LocationsFTBServerList", strings);
 		this.saveConfig();
+	}
+	private void load(){
+		config = getConfig();
+		List<String> enabled_site = config.getStringList("enabled");
+
+		for(int i=0;i<config.getConfigurationSection("sites").getKeys(false).size();i++){
+			ConfigurationSection section = config.getConfigurationSection("sites."+config.getConfigurationSection("sites").getKeys(false).toArray()[i]);
+
+			String name = config.getConfigurationSection("sites").getKeys(false).toArray()[i].toString();
+			if(enabled_site.contains(name)){
+				String web_address = section.getString("voting-webaddress");
+				String votifier_name = section.getString("votifier-log-name");
+				String[] spam_message = SpamDecorator.decor(section.getString("spam-message"));
+				boolean rewards_enabled = section.getBoolean("use-rewards");
+				boolean simple_date_enabled = section.getBoolean("use-simple-date");
+				List<ItemStack> rewards = new LinkedList<ItemStack>();
+				for(int j=0;j<section.getStringList("rewards").size();i++){
+					rewards.add(toItemStack(section.getStringList("rewards").get(i)));
+				}
+				List<Location> locations = new LinkedList<Location>();
+				for(int j=0;j<section.getStringList("locations").size();i++){
+					locations.add(toLocation(section.getStringList("locations").get(i)));
+				}
+				voting_site_list.add(new VotingSite(name, web_address, votifier_name, spam_message, rewards_enabled, simple_date_enabled, rewards, locations));
+				info("added "+name+" to list of avalible hits");
+			}else{
+				warning(name+" is not enabled.  skipping.");
+			}
+		}
+
+		blocked_worlds = config.getStringList("block-worlds");
+		interval = config.getLong("interval");
+		gather_vote_interval = config.getLong("gather-vote-interval");
+	}
+	@SuppressWarnings("deprecation")
+	private Location eventHelperForEjection(Player player, Location to, Location from){
+		if(blocked_worlds.contains(to.getWorld().getName())){
+			Calendar calendar = Calendar.getInstance();
+			if(player.isOp())return null;
+			else{
+				for(int i = 0; i<voting_site_list.size();i++ ){
+					if(override != null && !override.contains(player.getName())){
+						return ejectPlayer(player,voting_site_list.get(i),to,from);
+					}else if(voting_site_list.get(i).simple_date && (!(voting_site_list.get(i).containsKeyVotingMap((player).getName().toLowerCase()) 
+							&& (calendar.get(Calendar.DAY_OF_MONTH) == ((Date)voting_site_list.get(i).getVotingMap((player).getName().toLowerCase())).getDate())))){
+						return ejectPlayer(player,voting_site_list.get(i),to,from);
+					}
+					else if(!(voting_site_list.get(i).containsKeyVotingMap((player).getName().toLowerCase()) 
+							&& (System.currentTimeMillis()-(((Long)voting_site_list.get(i).getVotingMap(player.getName().toLowerCase()))*1000) < 86400000))){
+						return ejectPlayer(player,voting_site_list.get(i),to,from);
+					}
+				}
+			}		
+		}
+		return null;
+	}
+	private Location ejectPlayer(Player player, VotingSite site, Location to, Location from){
+		info("Ejecting player "+player.getName()+" from "+to.getWorld().getName());
+		messageSpamPlayer(player, site);
+		return from;
 	}
 	private static Location toLocation(String string){
 		String[] array;
@@ -411,6 +401,12 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 	private static String toString(Location location){
 		if(location == null) return null;
 		return (location.getBlockX()+","+location.getBlockY()+","+location.getBlockZ()+","+location.getWorld().getName());
+	}
+	private ItemStack toItemStack(String string){
+		String[] array;
+		if(string == null) return null;
+		array = string.split(",");
+		return new ItemStack(Integer.parseInt(array[0]),Integer.parseInt(array[2]),Short.parseShort((array[1])));
 	}
 	public static void info(String message){ 
 		log.info(header + ChatColor.WHITE + message);

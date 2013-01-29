@@ -1,6 +1,6 @@
 name: BeyondVotes
 main: Lihad.BeyondVotes.BeyondVotes
-version: 5.0
+version: 6.0
 commands:
   bv:
     description: Invalid Command
@@ -11,9 +11,12 @@ commands:
   bvdelete:
     description: Invalid Command
     usage: Invalid Command
-  bvlookup:
+  bvreload:
     description: Invalid Command
     usage: Invalid Command
   bvoverride:
+    description: Invalid Command
+    usage: Invalid Command
+  ivoted:
     description: Invalid Command
     usage: Invalid Command
