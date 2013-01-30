@@ -30,6 +30,7 @@ public class SpamDecorator {
 		color_map.put("&u", ChatColor.UNDERLINE);
 		color_map.put("&i", ChatColor.ITALIC);
 		color_map.put("&s", ChatColor.STRIKETHROUGH);
+		color_map.put("&r", ChatColor.RESET);
 
 	}
 	
@@ -43,6 +44,6 @@ public class SpamDecorator {
 			}
 			build=rebuilt;
 		}
-		return build.split("/");
+		return build.split("&x");
 	}
 }

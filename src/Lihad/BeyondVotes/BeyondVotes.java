@@ -70,8 +70,8 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 		List<ItemStack> rewards;
 		List<Location> locations;
 
-		private Map<String,Long> natural_voting_map = new HashMap<String,Long>();
-		private Map<String,Date> simple_date_voting_map = new HashMap<String,Date>();
+		Map<String,Long> natural_voting_map;
+		Map<String,Date> simple_date_voting_map;
 		
 		void putVotingMap(String name, Object obj){
 			if(simple_date)simple_date_voting_map.put(name,(Date) obj);
@@ -83,12 +83,12 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 		}
 		boolean containsKeyVotingMap(String string){
 			if(simple_date && simple_date_voting_map.containsKey(string)) return true;
-			else if(simple_date_voting_map.containsKey(string)) return true;
+			else if(natural_voting_map.containsKey(string)) return true;
 			else return false;
 		}
 		
 		VotingSite(String n, String w, String v, String[] s, boolean b, boolean bs, List<ItemStack> i, List<Location> l){
-			name = n; web_address = w; votifier_name = v;spam_message = s; rewards_enabled = b; simple_date =bs; rewards = i; locations = l;}
+			name = n; web_address = w; votifier_name = v;spam_message = s; rewards_enabled = b; simple_date =bs; rewards = i; locations = l;natural_voting_map = new HashMap<String,Long>();simple_date_voting_map = new HashMap<String,Date>();}
 	}
 	@Override
 	public void onDisable() {
@@ -139,10 +139,21 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 			
 				int runrotationmax = (int)((interval*voting_site_list.size())/gather_vote_interval);
 				int waittime = runrotationmax/voting_site_list.size();
-				double inverse = 1/waittime;
-				if(inverse == Math.round(inverse))siteSpammer(voting_site_list.get((int)((inverse*runrotation)-inverse)));
+				double inverse = 1.0/waittime;
+				if(inverse*(double)runrotation == Math.floor(inverse*(double)runrotation))siteSpammer(voting_site_list.get((int)((inverse*runrotation)-inverse)));
+				if(active)info("runrotationmax: "+runrotationmax);
+				if(active)info("runrotation: "+runrotation);
+				if(active)info("waittime: "+waittime);
+				if(active)info("inverse: "+inverse);
+				if(active)info("Math.floor(inverse*(double)runrotation): "+Math.floor(inverse*(double)runrotation));
+				if(active)info("inverse*(double)runrotation: "+inverse*(double)runrotation);
+
+				if(active)info("true/false: "+(inverse*runrotation == Math.floor(inverse*runrotation)));
+
+				
 				runrotation++;
-				if(runrotation >= runrotationmax-1) runrotation = 0;
+				if(runrotation >= runrotationmax) runrotation = 0;
+
 				if(active)info("Ending vote gatherer");
 			}
 		}, 0, gather_vote_interval);
@@ -209,7 +220,7 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 		for(int i = 0;i<players.length;i++){
 			Player player = players[i];
 	        String sIp = (player).getName().toLowerCase();
-	        if(site.containsKeyVotingMap(sIp)){
+	        if(!site.containsKeyVotingMap(sIp)){
 	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was not found.  Spammed");
 	        	messageSpamPlayer(player, site);
 	        }else if(site.simple_date && site.containsKeyVotingMap(sIp) && (calendar.get(Calendar.DAY_OF_MONTH) != ((Date)site.getVotingMap(sIp)).getDate())){
@@ -218,9 +229,11 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 	        }else if(site.containsKeyVotingMap(sIp) && (System.currentTimeMillis()-(((Long)site.getVotingMap(sIp))*1000) > 86400000)){
 	        	if(active)info("Player: "+player.getName()+" with Name ["+sIp+"] was found but hasn't voted in the last 24 hours");
 	        	messageSpamPlayer(player, site);
+	        }else{
+	        	if(active)warning("Player: "+player.getName()+" has fallen outside all possibilities");
 	        }
 		}
-		if(active)System.out.println("Ending "+site.name+" Vote Spammer....");
+		if(active)info("Ending "+site.name+" Vote Spammer....");
 	}
 	
 	private void messageSpamPlayer(Player player, VotingSite site){
@@ -346,12 +359,12 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 				boolean rewards_enabled = section.getBoolean("use-rewards");
 				boolean simple_date_enabled = section.getBoolean("use-simple-date");
 				List<ItemStack> rewards = new LinkedList<ItemStack>();
-				for(int j=0;j<section.getStringList("rewards").size();i++){
-					rewards.add(toItemStack(section.getStringList("rewards").get(i)));
+				for(int j=0;j<section.getStringList("rewards").size();j++){
+					rewards.add(toItemStack(section.getStringList("rewards").get(j)));
 				}
 				List<Location> locations = new LinkedList<Location>();
-				for(int j=0;j<section.getStringList("locations").size();i++){
-					locations.add(toLocation(section.getStringList("locations").get(i)));
+				for(int j=0;j<section.getStringList("locations").size();j++){
+					locations.add(toLocation(section.getStringList("locations").get(j)));
 				}
 				voting_site_list.add(new VotingSite(name, web_address, votifier_name, spam_message, rewards_enabled, simple_date_enabled, rewards, locations));
 				info("added "+name+" to list of avalible hits");
