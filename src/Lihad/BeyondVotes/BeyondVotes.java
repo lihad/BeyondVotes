@@ -296,14 +296,14 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 				if(voting_site_list.get(i).rewards_enabled){
 					if(voting_site_list.get(i).containsKeyVotingMap(((Player)sender).getName()) 
 							&& (System.currentTimeMillis()-(((Long)voting_site_list.get(i).getVotingMap(((Player)sender).getName()))*1000) < 86400000)){
-						sender.sendMessage("You already voted for ftb and received rewards today!");
+						sender.sendMessage("You already voted for "+voting_site_list.get(i).votifier_name+" and received rewards today!");
 						return true;
 					}
 					int rnd = new Random().nextInt(3);
 					if(rnd == 0){
 						try {
 							Long currentTime = (System.currentTimeMillis()/1000);
-							String outputline = ("Vote (from:ftbservers.com username:"+((Player)sender).getName()+" address:"+((Player)sender).getAddress().getAddress().getHostAddress()+" timeStamp:"+currentTime);
+							String outputline = ("Vote (from:"+voting_site_list.get(i).votifier_name+" username:"+((Player)sender).getName()+" address:"+((Player)sender).getAddress().getAddress().getHostAddress()+" timeStamp:"+currentTime);
 							BufferedWriter output = new BufferedWriter(new FileWriter(file, true));
 							output.newLine();
 							output.write(outputline);
@@ -320,20 +320,15 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 						
 					}
 					else{
-						sender.sendMessage("It doesnt look like you have voted yet, if you feel like");
-						sender.sendMessage("you received this message in error, wait 30 seconds and");
-						sender.sendMessage("try again");
+						sender.sendMessage("It doesnt look like you have voted yet on "+voting_site_list.get(i).votifier_name);
 					}
-					
 				}
 			}
-			
 			return true;
 		}
 		return false;
 	}
 	
-
 	private void saveLocations(){
 		for(int i = 0; i<voting_site_list.size();i++){
 			List<String> strings = new LinkedList<String>();
@@ -421,16 +416,16 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 		array = string.split(",");
 		return new ItemStack(Integer.parseInt(array[0]),Integer.parseInt(array[2]),Short.parseShort((array[1])));
 	}
-	public static void info(String message){ 
+	private static void info(String message){ 
 		log.info(header + ChatColor.WHITE + message);
 	}
-	public static void severe(String message){
+	private static void severe(String message){
 		log.severe(header + ChatColor.RED + message);
 	}
-	public static void warning(String message){
+	private static void warning(String message){
 		log.warning(header + ChatColor.YELLOW + message);
 	}
-	public static void log(java.util.logging.Level level, String message){
+	private static void log(java.util.logging.Level level, String message){
 		log.log(level, header + message);
 	}
 }
