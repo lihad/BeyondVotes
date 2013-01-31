@@ -140,7 +140,7 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 				int runrotationmax = (int)((interval*voting_site_list.size())/gather_vote_interval);
 				int waittime = runrotationmax/voting_site_list.size();
 				double inverse = 1.0/waittime;
-				if(inverse*(double)runrotation == Math.floor(inverse*(double)runrotation))siteSpammer(voting_site_list.get((int)((inverse*runrotation)-inverse)));
+				if(inverse*(double)runrotation == Math.floor(inverse*(double)runrotation))siteSpammer(voting_site_list.get((int)((inverse*runrotation))));
 				if(active)info("runrotationmax: "+runrotationmax);
 				if(active)info("runrotation: "+runrotation);
 				if(active)info("waittime: "+waittime);
@@ -255,8 +255,9 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 			return true;	
 		}		
 		else if(cmd.getName().equalsIgnoreCase("bvreload") && sender.isOp()){
-			load();
+			reload();
 			sender.sendMessage("bv Reloaded");
+			return true;	
 		}else if(cmd.getName().equalsIgnoreCase("bvset") && sender instanceof Player && ((Player)sender).isOp()){
 			if(selection_enabled.containsKey(((Player)sender).getName())){
 				selection_enabled.remove(((Player)sender).getName());
@@ -338,6 +339,11 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 			config.set("sites."+voting_site_list.get(i).name+".locations", strings);
 		}
 		this.saveConfig();
+	}
+	private void reload(){
+		this.reloadConfig();
+		voting_site_list.clear();
+		load();
 	}
 	private void load(){
 		config = getConfig();
