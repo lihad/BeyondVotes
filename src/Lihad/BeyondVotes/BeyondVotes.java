@@ -121,6 +121,8 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 									}else{
 										voting_site_list.get(i).putVotingMap((line.substring(line.indexOf("username:")+9, line.indexOf("address:")-1)).toLowerCase(),
 												Long.parseLong(line.substring(line.indexOf("timeStamp:")+10,line.indexOf("timeStamp:")+20)));
+										info("Adding in: "+(line.substring(line.indexOf("username:")+9, line.indexOf("address:")-1)).toLowerCase()+" "+Long.parseLong(line.substring(line.indexOf("timeStamp:")+10,line.indexOf("timeStamp:")+20)));
+
 									}
 								}
 							}
@@ -295,7 +297,7 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 		}else if(cmd.getName().equalsIgnoreCase("ivoted")){
 			for(int i = 0; i<voting_site_list.size();i++){
 				if(voting_site_list.get(i).rewards_enabled){
-					if(voting_site_list.get(i).containsKeyVotingMap(((Player)sender).getName()) 
+					if(voting_site_list.get(i).containsKeyVotingMap(((Player)sender).getName().toLowerCase()) 
 							&& (System.currentTimeMillis()-(((Long)voting_site_list.get(i).getVotingMap(((Player)sender).getName()))*1000) < 86400000)){
 						sender.sendMessage("You already voted for "+voting_site_list.get(i).votifier_name+" and received rewards today!");
 						return true;
@@ -343,6 +345,7 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 	private void reload(){
 		this.reloadConfig();
 		voting_site_list.clear();
+		lineindex = 0;
 		load();
 	}
 	private void load(){
