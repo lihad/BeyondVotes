@@ -300,7 +300,6 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 					if(voting_site_list.get(i).containsKeyVotingMap(((Player)sender).getName().toLowerCase()) 
 							&& (System.currentTimeMillis()-(((Long)voting_site_list.get(i).getVotingMap(((Player)sender).getName().toLowerCase()))*1000) < 86400000)){
 						sender.sendMessage("You already voted for "+voting_site_list.get(i).votifier_name+" and received rewards today!");
-						return true;
 					}
 					int rnd = new Random().nextInt(3);
 					if(rnd == 0){
