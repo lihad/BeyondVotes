@@ -298,7 +298,7 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 			for(int i = 0; i<voting_site_list.size();i++){
 				if(voting_site_list.get(i).rewards_enabled){
 					if(voting_site_list.get(i).containsKeyVotingMap(((Player)sender).getName().toLowerCase()) 
-							&& (System.currentTimeMillis()-(((Long)voting_site_list.get(i).getVotingMap(((Player)sender).getName()))*1000) < 86400000)){
+							&& (System.currentTimeMillis()-(((Long)voting_site_list.get(i).getVotingMap(((Player)sender).getName().toLowerCase()))*1000) < 86400000)){
 						sender.sendMessage("You already voted for "+voting_site_list.get(i).votifier_name+" and received rewards today!");
 						return true;
 					}
