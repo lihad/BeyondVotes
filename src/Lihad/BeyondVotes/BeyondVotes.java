@@ -300,29 +300,30 @@ public class BeyondVotes extends JavaPlugin implements Listener {
 					if(voting_site_list.get(i).containsKeyVotingMap(((Player)sender).getName().toLowerCase()) 
 							&& (System.currentTimeMillis()-(((Long)voting_site_list.get(i).getVotingMap(((Player)sender).getName().toLowerCase()))*1000) < 86400000)){
 						sender.sendMessage("You already voted for "+voting_site_list.get(i).votifier_name+" and received rewards today!");
-					}
-					int rnd = new Random().nextInt(3);
-					if(rnd == 0){
-						try {
-							Long currentTime = (System.currentTimeMillis()/1000);
-							String outputline = ("Vote (from:"+voting_site_list.get(i).votifier_name+" username:"+((Player)sender).getName()+" address:"+((Player)sender).getAddress().getAddress().getHostAddress()+" timeStamp:"+currentTime);
-							BufferedWriter output = new BufferedWriter(new FileWriter(file, true));
-							output.newLine();
-							output.write(outputline);
-							output.close();
-							
-							voting_site_list.get(i).putVotingMap(sender.getName(), (System.currentTimeMillis()/1000));
-							sender.sendMessage("Congrats!!!  Here are your rewards!!");
-							for(int g = 0; g<voting_site_list.get(i).rewards.size();g++){
-								((Player)sender).getWorld().dropItemNaturally(((Player)sender).getLocation(), voting_site_list.get(i).rewards.get(g));
+					}else{
+						int rnd = new Random().nextInt(3);
+						if(rnd == 0){
+							try {
+								Long currentTime = (System.currentTimeMillis()/1000);
+								String outputline = ("Vote (from:"+voting_site_list.get(i).votifier_name+" username:"+((Player)sender).getName().toLowerCase()+" address:"+((Player)sender).getAddress().getAddress().getHostAddress()+" timeStamp:"+currentTime);
+								BufferedWriter output = new BufferedWriter(new FileWriter(file, true));
+								output.newLine();
+								output.write(outputline);
+								output.close();
+								
+								voting_site_list.get(i).putVotingMap(((Player)sender).getName().toLowerCase(), (System.currentTimeMillis()/1000));
+								sender.sendMessage("Congrats!!!  Here are your rewards!!");
+								for(int g = 0; g<voting_site_list.get(i).rewards.size();g++){
+									((Player)sender).getWorld().dropItemNaturally(((Player)sender).getLocation(), voting_site_list.get(i).rewards.get(g));
+								}
+							} catch (IOException e) {
+								e.printStackTrace();
 							}
-						} catch (IOException e) {
-							e.printStackTrace();
+							
 						}
-						
-					}
-					else{
-						sender.sendMessage("It doesnt look like you have voted yet on "+voting_site_list.get(i).votifier_name);
+						else{
+							sender.sendMessage("It doesnt look like you have voted yet on "+voting_site_list.get(i).votifier_name);
+						}
 					}
 				}
 			}
